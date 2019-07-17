@@ -19,8 +19,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/unidoc/unioffice/spreadsheet"
-
 	"github.com/AnotherCoolDude/workload/excel"
 
 	"github.com/spf13/cobra"
@@ -95,5 +93,3 @@ func caseInsensitiveContains(s, substr string) bool {
 	s, substr = strings.ToUpper(s), strings.ToUpper(substr)
 	return strings.Contains(s, substr)
 }
-
-

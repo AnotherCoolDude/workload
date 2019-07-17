@@ -17,12 +17,16 @@ package cmd
 
 import (
   "fmt"
+  "github.com/AnotherCoolDude/workload/excel"
   "github.com/spf13/cobra"
   "os"
 
   homedir "github.com/mitchellh/go-homedir"
   "github.com/spf13/viper"
 )
+
+// WorkloadFileName represents the file name of the workload file
+const WorkloadFileName = "übersicht Auslastung Jan_Dez2019.xlsx"
 
 var cfgFile string
 
@@ -63,6 +67,19 @@ func init() {
 
 // initWorkloadFile checks wether the excel file for employee workload is available
 func initWorkloadFile() {
+  info, err := os.Stat(WorkloadFileName)
+  if os.IsNotExist(err) {
+    fmt.Println("couldn't find workload file. File must be placed in same ordner as the executable")
+    fmt.Println(err)
+    os.Exit(1)
+  }
+
+  fmt.Printf("found file: %s\n", info.Name())
+
+  file := excel.OpenWorkloadFile(WorkloadFileName)
+  for _, shName := range file.Sheetnames() {
+    fmt.Printf("%s\t", shName)
+  }
 
 }
 

@@ -4,18 +4,19 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
-	"github.com/AnotherCoolDude/protoexcel"
+	pe "github.com/AnotherCoolDude/protoexcel"
 	"github.com/unidoc/unioffice/spreadsheet"
 )
 
 // Open opens the excel file at path for read only access
-func Open(path string) *protoexcel.Read {
-	return protoexcel.ReadExcel(path, true)
+func Open(path string) *pe.Read {
+	return pe.ReadExcel(path, true)
 }
 
 // FilterColumns extracts cols and returns a map with values per col
-func FilterColumns(cols []int, read *protoexcel.Read) map[int][]interface{} {
+func FilterColumns(cols []int, read *pe.Read) map[int][]interface{} {
 	colMap := map[int][]interface{}{}
 	for _, col := range cols {
 		extractedCol := read.Column(read.Sheets()[1], col)
@@ -26,14 +27,6 @@ func FilterColumns(cols []int, read *protoexcel.Read) map[int][]interface{} {
 		colMap[col] = values
 	}
 	return colMap
-}
-
-func writeToSheet(sheetname string, excelfile *spreadsheet.Workbook) {
-	sheet, err := excelfile.GetSheet(sheetname)
-	if err != nil {
-		fmt.Println(err)
-	}
-
 }
 
 // WorkloadFile represents a workload file
@@ -57,10 +50,23 @@ func OpenWorkloadFile(path string) *WorkloadFile {
 
 	regex := regexp.MustCompile("[a-zA-Z]*")
 
-	for _, sh := range sheets {
+	for _, sh := range sheets[:5] {
+
 		sheetnames = append(sheetnames, sh.Name())
-		latestCol := strings.Split(sh.Extents(), ":")[1]
-		latestColumns[sh.Name()] = regex.FindStringSubmatch(latestCol)[0]
+		latestCell := strings.Split(sh.Extents(), ":")[1]
+		latestCol := regex.FindStringSubmatch(latestCell)[0]
+		colNum, _ := pe.ColumnNameToNumber(latestCol)
+
+		for col := 2; col < colNum; col++ {
+			colName, _ := pe.ColumnNumberToName(col)
+			cell := sh.Cell(fmt.Sprintf("%s%d", colName, 2))
+			if value, err := cell.GetRawValue(); err == nil {
+				if value == "" {
+					lastUsedColName, _ := pe.ColumnNumberToName(col - 1)
+					latestColumns[sh.Name()] = lastUsedColName
+				}
+			}
+		}
 
 	}
 
@@ -72,23 +78,67 @@ func OpenWorkloadFile(path string) *WorkloadFile {
 
 }
 
-// CurrentColumn returns the current column of the sheet with sheetname, e.g. "B"
-func (wf *WorkloadFile) CurrentColumn(sheetname string) int {
-	extend := wf.latestColumns[sheetname]
-	coords := strings.Split(extend, ":")
-	num, err := protoexcel.ColumnNameToNumber(string(coords[1][0]))
-	if err != nil {
-		fmt.Println(err)
-	}
-	return num
-}
-
 // Sheetnames returns all sheetnames of the workloadfile
 func (wf *WorkloadFile) Sheetnames() []string {
 	return wf.sheets
 }
 
-func (wf *WorkloadFile) AddValuesToNextColumn(values map[string]float32, sheetname string) {
-	nextCol := wf.CurrentColumn(sheetname) + 1
+// AddValueToEmployee adds a value to employee in the last used column of sheet
+func (wf *WorkloadFile) AddValueToEmployee(employee string, value float64, sheetname string) {
+	lastUsedCol := wf.latestColumns[sheetname]
+	sheet, err := wf.workbook.GetSheet(sheetname)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	employeeRow := 0
+	for row := 1; row < 100; row++ {
+		cell := sheet.Cell(fmt.Sprintf("%s%d", "A", row))
+		if name, err := cell.GetRawValue(); err == nil {
+			if name == employee {
+				employeeRow = row
+			}
+		}
+	}
+	if employeeRow == 0 {
+		fmt.Printf("couldn't find employee %s\n", employee)
+		return
+	}
+	sheet.Cell(fmt.Sprintf("%s%d", lastUsedCol, employeeRow)).SetNumber(value)
+}
+
+// DeclareNewColumnForPeriod adds a new period into the next free column of sheetname
+func (wf *WorkloadFile) DeclareNewColumnForPeriod(period string, sheetname string) {
+	lastUsedCol := wf.latestColumns[sheetname]
+	sheet, err := wf.workbook.GetSheet(sheetname)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	colNum, _ := pe.ColumnNameToNumber(lastUsedCol)
+	nextColName, _ := pe.ColumnNumberToName(colNum + 1)
+	sheet.Cell(fmt.Sprintf("%s%d", nextColName, 2)).SetString(period)
+	wf.latestColumns[sheetname] = nextColName
+}
+
+// DeclareNewColumnWithNextPeriod adds a new column to sheetname with a week more based on the last week
+func (wf *WorkloadFile) DeclareNewColumnWithNextPeriod(sheetname string) {
+	lastUsedCol := wf.latestColumns[sheetname]
+	sheet, err := wf.workbook.GetSheet(sheetname)
+	if err != nil {
+		fmt.Sprintln(err)
+		return
+	}
+	lastPeriod := sheet.Cell(fmt.Sprintf("%s%d", lastUsedCol, 2)).GetString()
+	dates := strings.Split(lastPeriod, "-")
+	lastDate, err := time.Parse("02.01.06", dates[1])
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	newStartDate := lastDate.Add(time.Hour * 24)
+	newEndDate := lastDate.Add(time.Hour * 24 * 7)
+	newPeriod := fmt.Sprintf("%s-%s", newStartDate.Format("02.01"), newEndDate.Format("02.01.06"))
+	wf.DeclareNewColumnForPeriod(newPeriod, sheetname)
 
 }
