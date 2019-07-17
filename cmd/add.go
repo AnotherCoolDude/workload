@@ -17,6 +17,10 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
+
+	"github.com/unidoc/unioffice/spreadsheet"
+
 	"github.com/AnotherCoolDude/workload/excel"
 
 	"github.com/spf13/cobra"
@@ -55,7 +59,7 @@ var addCmd = &cobra.Command{
 		for i := 0; i < len(colmap[1]); i++ {
 			if caseInsensitiveContains(fmt.Sprintf("%s", colmap[7][i]), "pitch") {
 				fmt.Print("pitch")
-				return
+				continue
 			}
 
 			switch colmap[8][i] {
@@ -91,3 +95,5 @@ func caseInsensitiveContains(s, substr string) bool {
 	s, substr = strings.ToUpper(s), strings.ToUpper(substr)
 	return strings.Contains(s, substr)
 }
+
+
