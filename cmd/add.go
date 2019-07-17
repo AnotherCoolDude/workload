@@ -16,10 +16,7 @@ limitations under the License.
 package cmd
 
 import (
-	"fmt"
 	"strings"
-
-	"github.com/AnotherCoolDude/workload/excel"
 
 	"github.com/spf13/cobra"
 )
@@ -39,38 +36,40 @@ var addCmd = &cobra.Command{
 	add sorts the csv file and extracts its content. 
 	The content is then added to the emplyee workload file.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("add called")
-		if len(args) != 1 {
-			fmt.Println("requires only one path argument")
-			return
-		}
+		// fmt.Println("add called")
+		// if len(args) != 1 {
+		// 	fmt.Println("requires only one path argument")
+		// 	return
+		// }
 
-		read := excel.Open(args[0])
-		colmap := excel.FilterColumns([]int{1, 2, 4, 7, 8, 9}, read)
-		// for i, v := range colmap[9] {
-		// 	if i%5 == 0 {
-		// 		fmt.Printf("%.2f\n", v)
-		// 	} else {
-		// 		fmt.Printf("%.2f\t", v)
+		//InitWorkloadFile()
+
+		// read := excel.Open(args[0])
+		// colmap := excel.FilterColumns([]int{1, 2, 4, 7, 8, 9}, read)
+		// // for i, v := range colmap[9] {
+		// // 	if i%5 == 0 {
+		// // 		fmt.Printf("%.2f\n", v)
+		// // 	} else {
+		// // 		fmt.Printf("%.2f\t", v)
+		// // 	}
+		// // }
+		// for i := 0; i < len(colmap[1]); i++ {
+		// 	if caseInsensitiveContains(fmt.Sprintf("%s", colmap[7][i]), "pitch") {
+		// 		fmt.Print("pitch")
+		// 		continue
+		// 	}
+
+		// 	switch colmap[8][i] {
+		// 	case jobNrNoWork:
+		// 		fmt.Println(jobNrNoWork)
+		// 	case jobNrOvertime:
+		// 		fmt.Println(jobNrOvertime)
+		// 	case jobNrSick:
+		// 		fmt.Println(jobNrSick)
+		// 	case jobNrVacation:
+		// 		fmt.Println(jobNrVacation)
 		// 	}
 		// }
-		for i := 0; i < len(colmap[1]); i++ {
-			if caseInsensitiveContains(fmt.Sprintf("%s", colmap[7][i]), "pitch") {
-				fmt.Print("pitch")
-				continue
-			}
-
-			switch colmap[8][i] {
-			case jobNrNoWork:
-				fmt.Println(jobNrNoWork)
-			case jobNrOvertime:
-				fmt.Println(jobNrOvertime)
-			case jobNrSick:
-				fmt.Println(jobNrSick)
-			case jobNrVacation:
-				fmt.Println(jobNrVacation)
-			}
-		}
 
 	},
 }

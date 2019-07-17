@@ -16,13 +16,14 @@ limitations under the License.
 package cmd
 
 import (
-  "fmt"
-  "github.com/AnotherCoolDude/workload/excel"
-  "github.com/spf13/cobra"
-  "os"
+	"fmt"
+	"os"
 
-  homedir "github.com/mitchellh/go-homedir"
-  "github.com/spf13/viper"
+	"github.com/AnotherCoolDude/workload/excel"
+	"github.com/spf13/cobra"
+
+	homedir "github.com/mitchellh/go-homedir"
+	"github.com/spf13/viper"
 )
 
 // WorkloadFileName represents the file name of the workload file
@@ -32,79 +33,86 @@ var cfgFile string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-  Use:   "workload",
-  Short: "workload helps modifying (adding, deleting, ...) the workload file",
-  Long: `keeping track of the emplyee workload can be time intense. 
+	Use:   "workload",
+	Short: "workload helps modifying (adding, deleting, ...) the workload file",
+	Long: `keeping track of the emplyee workload can be time intense. 
   This programms automates the repetetive task of filling out the excel file,
   that keeps track of how the time of emplyees is used in different kinds of projects.`,
-  // Uncomment the following line if your bare application
-  // has an action associated with it:
-  //	Run: func(cmd *cobra.Command, args []string) { },
+	// Uncomment the following line if your bare application
+	// has an action associated with it:
+	//	Run: func(cmd *cobra.Command, args []string) { },
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-  if err := rootCmd.Execute(); err != nil {
-    fmt.Println(err)
-    os.Exit(1)
-  }
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }
 
 func init() {
-  cobra.OnInitialize(initWorkloadFile)
+	cobra.OnInitialize(InitWorkloadFile)
 
-  // Here you will define your flags and configuration settings.
-  // Cobra supports persistent flags, which, if defined here,
-  // will be global for your application.
+	// Here you will define your flags and configuration settings.
+	// Cobra supports persistent flags, which, if defined here,
+	// will be global for your application.
 
-  // rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.workload.yaml)")
+	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.workload.yaml)")
 
-  // Cobra also supports local flags, which will only run
-  // when this action is called directly.
-  // rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// Cobra also supports local flags, which will only run
+	// when this action is called directly.
+	// rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
-// initWorkloadFile checks wether the excel file for employee workload is available
-func initWorkloadFile() {
-  info, err := os.Stat(WorkloadFileName)
-  if os.IsNotExist(err) {
-    fmt.Println("couldn't find workload file. File must be placed in same ordner as the executable")
-    fmt.Println(err)
-    os.Exit(1)
-  }
+// InitWorkloadFile checks wether the excel file for employee workload is available
+func InitWorkloadFile() {
+	wd, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(wd)
 
-  fmt.Printf("found file: %s\n", info.Name())
+	info, err := os.Stat(wd + "/" + WorkloadFileName)
+	if os.IsNotExist(err) {
+		fmt.Println("couldn't find workload file. File must be placed in same ordner as the executable")
+		fmt.Println(err)
+		os.Exit(1)
+	}
 
-  file := excel.OpenWorkloadFile(WorkloadFileName)
-  for _, shName := range file.Sheetnames() {
-    fmt.Printf("%s\t", shName)
-  }
+	fmt.Printf("found file: %s\n", info.Name())
+
+	file := excel.OpenWorkloadFile(WorkloadFileName)
+	for _, shName := range file.Sheetnames() {
+		fmt.Printf("%s\t", shName)
+	}
+	fmt.Println()
 
 }
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
-  if cfgFile != "" {
-    // Use config file from the flag.
-    viper.SetConfigFile(cfgFile)
-  } else {
-    // Find home directory.
-    home, err := homedir.Dir()
-    if err != nil {
-      fmt.Println(err)
-      os.Exit(1)
-    }
+	if cfgFile != "" {
+		// Use config file from the flag.
+		viper.SetConfigFile(cfgFile)
+	} else {
+		// Find home directory.
+		home, err := homedir.Dir()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 
-    // Search config in home directory with name ".workload" (without extension).
-    viper.AddConfigPath(home)
-    viper.SetConfigName(".workload")
-  }
+		// Search config in home directory with name ".workload" (without extension).
+		viper.AddConfigPath(home)
+		viper.SetConfigName(".workload")
+	}
 
-  viper.AutomaticEnv() // read in environment variables that match
+	viper.AutomaticEnv() // read in environment variables that match
 
-  // If a config file is found, read it in.
-  if err := viper.ReadInConfig(); err == nil {
-    fmt.Println("Using config file:", viper.ConfigFileUsed())
-  }
+	// If a config file is found, read it in.
+	if err := viper.ReadInConfig(); err == nil {
+		fmt.Println("Using config file:", viper.ConfigFileUsed())
+	}
 }
