@@ -16,6 +16,9 @@ limitations under the License.
 package cmd
 
 import (
+	"fmt"
+	"github.com/AnotherCoolDude/workload/excel"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -36,40 +39,50 @@ var addCmd = &cobra.Command{
 	add sorts the csv file and extracts its content. 
 	The content is then added to the emplyee workload file.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// fmt.Println("add called")
-		// if len(args) != 1 {
-		// 	fmt.Println("requires only one path argument")
-		// 	return
-		// }
+		fmt.Println("add called")
+		if len(args) != 1 {
+			fmt.Println("requires only one path argument")
+			return
+		}
+		wf := excel.OpenWorkloadFile(WorkloadFileName)
 
-		//InitWorkloadFile()
+		read := excel.Open(args[0])
+		colmap := excel.FilterColumns([]int{1, 2, 4, 7, 8, 9}, read)
 
-		// read := excel.Open(args[0])
-		// colmap := excel.FilterColumns([]int{1, 2, 4, 7, 8, 9}, read)
-		// // for i, v := range colmap[9] {
-		// // 	if i%5 == 0 {
-		// // 		fmt.Printf("%.2f\n", v)
-		// // 	} else {
-		// // 		fmt.Printf("%.2f\t", v)
-		// // 	}
-		// // }
-		// for i := 0; i < len(colmap[1]); i++ {
-		// 	if caseInsensitiveContains(fmt.Sprintf("%s", colmap[7][i]), "pitch") {
-		// 		fmt.Print("pitch")
-		// 		continue
-		// 	}
+		for _, sheetname := range wf.Sheetnames()[:7] {
+			wf.DeclareNewColumnWithNextPeriod(sheetname)
+		}
 
-		// 	switch colmap[8][i] {
-		// 	case jobNrNoWork:
-		// 		fmt.Println(jobNrNoWork)
-		// 	case jobNrOvertime:
-		// 		fmt.Println(jobNrOvertime)
-		// 	case jobNrSick:
-		// 		fmt.Println(jobNrSick)
-		// 	case jobNrVacation:
-		// 		fmt.Println(jobNrVacation)
-		// 	}
-		// }
+		//TODO: testing
+
+		for i := 0; i < len(colmap[1]); i++ {
+			employeeName := fmt.Sprintf("%s", colmap[1][i])
+			workhours, err := strconv.ParseFloat(fmt.Sprintf("%s", colmap[9][i]), 64)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			jobnr := fmt.Sprintf("%s", colmap[8][i])
+
+			switch jobnr {
+			case jobNrNoWork:
+				wf.AddValueToEmployee(employeeName, workhours, wf.Sheetnames()[2])
+			case jobNrOvertime:
+				wf.AddValueToEmployee(employeeName, workhours, wf.Sheetnames()[7])
+			case jobNrSick:
+				wf.AddValueToEmployee(employeeName, workhours, wf.Sheetnames()[5])
+			case jobNrVacation:
+				wf.AddValueToEmployee(employeeName, workhours, wf.Sheetnames()[4])
+			default:
+				if caseInsensitiveContains(fmt.Sprintf("%s", colmap[7][i]), "pitch") {
+					wf.AddValueToEmployee(employeeName, workhours, wf.Sheetnames()[1])
+				} else if strings.Contains(jobnr, "SEIN") {
+					wf.AddValueToEmployee(employeeName, workhours, wf.Sheetnames()[3])
+				} else {
+					wf.AddValueToEmployee(employeeName, workhours, wf.Sheetnames()[0])
+				}
+			}
+		}
 
 	},
 }
