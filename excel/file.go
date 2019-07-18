@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -32,28 +33,38 @@ func FilterColumns(cols []int, read *pe.Read) map[int][]interface{} {
 
 // WorkloadFile represents a workload file
 type WorkloadFile struct {
-	workbook      *spreadsheet.Workbook
-	sheets        []string
-	latestColumns map[string]string
+	workbook    *spreadsheet.Workbook
+	sheets      []string
+	nextColumn  map[string]string
+	finalColumn map[string]string
+	finalRow    map[string]int
 }
 
 // Department describes the departments employees are categorised in
 type Department string
 
 const (
-	managingDirectors Department = "Geschäftsführung"
-	consulting        Department = "Beratung"
-	creation          Department = "Kreative"
-	production        Department = "Produktion"
-	text              Department = "Text"
-	administration    Department = "Verwaltung"
-	training          Department = "Auszubildende/Trainee"
-	pr                Department = "PR"
+	// ManagingDirectors Department
+	ManagingDirectors Department = "Geschäftsführung"
+	// Consulting Department
+	Consulting Department = "Beratung"
+	//Creation Department
+	Creation Department = "Kreative"
+	//Production Department
+	Production Department = "Produktion"
+	//Text Department
+	Text Department = "Text"
+	//Administration Department
+	Administration Department = "Verwaltung"
+	//Training Department
+	Training Department = "Auszubildende/Trainee"
+	//PR Department
+	PR Department = "PR"
 )
 
 func departments() []string {
 	return []string{
-		string(managingDirectors), string(consulting), string(creation), string(production), string(text), string(administration), string(training), string(pr),
+		string(ManagingDirectors), string(Consulting), string(Creation), string(Production), string(Text), string(Administration), string(Training), string(PR),
 	}
 }
 
@@ -67,36 +78,59 @@ func OpenWorkloadFile(path string) *WorkloadFile {
 
 	sheets := wb.Sheets()
 	sheetnames := []string{}
-	latestColumns := map[string]string{}
-
-	regex := regexp.MustCompile("[a-zA-Z]*")
-
+	nextColumn := map[string]string{}
+	finalColumn := map[string]string{}
+	finalRow := map[string]int{}
+	regexChars := regexp.MustCompile("[a-zA-Z]*")
+	regexNums := regexp.MustCompile("[0-9]*")
 	for _, sh := range sheets {
 
 		sheetnames = append(sheetnames, sh.Name())
 		latestCell := strings.Split(sh.Extents(), ":")[1]
-		latestCol := regex.FindStringSubmatch(latestCell)[0]
-		colNum, _ := pe.ColumnNameToNumber(latestCol)
+		latestCol := regexChars.FindStringSubmatch(latestCell)[0]
+		numsresult := regexNums.FindAllString(latestCell, 10)
+		for _, result := range numsresult {
+			if strings.TrimSpace(result) != "" {
+				row, err := strconv.Atoi(result)
+				if err != nil {
+					fmt.Println(err)
+				}
+				finalRow[sh.Name()] = row
+			}
+		}
+		finalColumn[sh.Name()] = latestCol
 
+		colNum, _ := pe.ColumnNameToNumber(latestCol)
 		for col := 2; col < colNum; col++ {
 			colName, _ := pe.ColumnNumberToName(col)
 			cell := sh.Cell(fmt.Sprintf("%s%d", colName, 2))
-			if value, err := cell.GetRawValue(); err == nil {
-				if value == "" {
-					lastUsedColName, _ := pe.ColumnNumberToName(col - 1)
-					latestColumns[sh.Name()] = lastUsedColName
-				}
+			if cell.IsEmpty() {
+				nextColumn[sh.Name()] = colName
+				break
 			}
 		}
-
 	}
 
 	return &WorkloadFile{
-		workbook:      wb,
-		sheets:        sheetnames,
-		latestColumns: latestColumns,
+		workbook:    wb,
+		sheets:      sheetnames,
+		nextColumn:  nextColumn,
+		finalColumn: finalColumn,
+		finalRow:    finalRow,
 	}
 
+}
+
+func (wf *WorkloadFile) nextAndFinalColNums(sheetname string) (next, final int) {
+	next, err := pe.ColumnNameToNumber(wf.nextColumn[sheetname])
+	if err != nil {
+		fmt.Println(err)
+	}
+	final, err = pe.ColumnNameToNumber(wf.finalColumn[sheetname])
+	if err != nil {
+		fmt.Println(err)
+	}
+	return
 }
 
 // Sheetnames returns all sheetnames of the workloadfile
@@ -105,27 +139,24 @@ func (wf *WorkloadFile) Sheetnames() []string {
 }
 
 // AddValueToEmployee adds a value to employee in the last used column of sheet
-func (wf *WorkloadFile) AddValueToEmployee(employee string, value float64, sheetname string) {
-	lastUsedCol := wf.latestColumns[sheetname]
+func (wf *WorkloadFile) AddValueToEmployee(employee string, value float64, sheetname, column string) {
 	sheet, err := wf.workbook.GetSheet(sheetname)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 	employeeRow := 0
-	for row := 1; row < 100; row++ {
+	for row := 1; row < wf.finalRow[sheetname]; row++ {
 		cell := sheet.Cell(fmt.Sprintf("%s%d", "A", row))
-		if name, err := cell.GetRawValue(); err == nil {
-			if name == employee {
-				employeeRow = row
-			}
+		if cell.GetString() == employee {
+			employeeRow = row
 		}
 	}
 	if employeeRow == 0 {
 		fmt.Printf("couldn't find employee %s\n", employee)
 		return
 	}
-	sheet.Cell(fmt.Sprintf("%s%d", lastUsedCol, employeeRow)).SetNumber(value)
+	sheet.Cell(fmt.Sprintf("%s%d", column, employeeRow)).SetNumber(value)
 }
 
 // InsertEmployee inserts a new Employee into the workloadfile
@@ -136,23 +167,72 @@ func (wf *WorkloadFile) InsertEmployee(name string, department Department) {
 			fmt.Printf("couldn't get sheet with name: %s\n", sheetname)
 			continue
 		}
-		existingEmployees := map[int]string{}
+		departmentrows := []int{}
 	rowLoop:
-		for row := 1; row < 100; row++ {
-			if sh.Cell(fmt.Sprintf("%s%d", "A", row)).GetString() == string(department) {
-				for existingRows := row; existingRows > 0; existingRows-- {
-					str := sh.Cell(fmt.Sprintf("%s%d", "A", existingRows)).GetString()
-					if strings.TrimSpace(str) != "" {
-						existingEmployees[existingRows] = str
-					} else {
+		for row := 1; row < wf.finalRow[sheetname]; row++ {
+			cellValue := sh.Cell(fmt.Sprintf("%s%d", "A", row)).GetString()
+			if cellValue == name {
+				fmt.Printf("employee %s allready exists\n", name)
+				return
+			}
+			for _, dep := range departments() {
+				if dep == cellValue {
+					departmentrows = append(departmentrows, row)
+					if cellValue == string(department) {
 						break rowLoop
 					}
 				}
 			}
 		}
-		newEmployeeRow := calcNewRow(name, existingEmployees)
-		newRow := sh.InsertRow(newEmployeeRow)
+		depStart := 0
+		depEnd := departmentrows[len(departmentrows)-1] - 1
+		names := []string{}
+		if len(departmentrows) == 1 {
+			depStart = 8
+		} else {
+			depStart = departmentrows[len(departmentrows)-2] + 2
+		}
+		for r := depStart; r <= depEnd; r++ {
+			cellValue := sh.Cell(fmt.Sprintf("%s%d", "A", r)).GetString()
+			fmt.Print(cellValue)
+			if cellValue != "" {
+				names = append(names, cellValue)
+			}
+		}
+		newEmpIndex := 0
+		namesExt := names
+		namesExt = append(namesExt, name)
+		sort.Strings(names)
+		sort.Strings(namesExt)
+		for i, n := range names {
+			if n != namesExt[i] {
+				newEmpIndex = i
+			}
+		}
+		if newEmpIndex == 0 {
+			newEmpIndex = len(namesExt) - 1
+		}
+		fmt.Println(newEmpIndex)
+		newRow := sh.InsertRow(depStart + newEmpIndex)
 		newRow.Cell("A").SetString(name)
+
+		// rowLoop:
+		// 	for row := 1; row < wf.finalRow[sheetname]; row++ {
+		// 		if sh.Cell(fmt.Sprintf("%s%d", "A", row)).GetString() == string(department) {
+		// 			for existingRows := row; existingRows > 0; existingRows-- {
+		// 				str := sh.Cell(fmt.Sprintf("%s%d", "A", existingRows)).GetString()
+		// 				if strings.TrimSpace(str) != "" {
+		// 					existingEmployees[existingRows] = str
+		// 				} else {
+		// 					break rowLoop
+		// 				}
+		// 			}
+		// 		}
+		// 	}
+		// 	newEmployeeRow := calcNewRow(name, existingEmployees)
+		// 	newRow := sh.InsertRow(newEmployeeRow)
+		// 	newRow.Cell("A").SetString(name)
+
 	}
 }
 
@@ -187,27 +267,36 @@ func calcNewRow(newEmployee string, existingEmployeesMap map[int]string) int {
 
 // DeclareNewColumnForPeriod adds a new period into the next free column of sheetname
 func (wf *WorkloadFile) DeclareNewColumnForPeriod(period string, sheetname string) {
-	lastUsedCol := wf.latestColumns[sheetname]
+	next, final := wf.nextAndFinalColNums(sheetname)
+	sheet, err := wf.workbook.GetSheet(sheetname)
+	if err != nil {
+		fmt.Println(err)
+		return
+	} else if next >= final {
+		fmt.Println("reached end of file")
+		return
+	}
+	nextName, _ := pe.ColumnNumberToName(next)
+	newNextName, _ := pe.ColumnNumberToName(next + 1)
+	sheet.Cell(fmt.Sprintf("%s%d", nextName, 2)).SetString(period)
+	wf.nextColumn[sheetname] = newNextName
+}
+
+// DeclareNewColumnWithNextPeriod adds a new column to sheetname with a week more based on the last week
+func (wf *WorkloadFile) DeclareNewColumnWithNextPeriod(sheetname string) {
+	next, _ := wf.nextAndFinalColNums(sheetname)
 	sheet, err := wf.workbook.GetSheet(sheetname)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	colNum, _ := pe.ColumnNameToNumber(lastUsedCol)
-	nextColName, _ := pe.ColumnNumberToName(colNum + 1)
-	sheet.Cell(fmt.Sprintf("%s%d", nextColName, 2)).SetString(period)
-	wf.latestColumns[sheetname] = nextColName
-}
-
-// DeclareNewColumnWithNextPeriod adds a new column to sheetname with a week more based on the last week
-func (wf *WorkloadFile) DeclareNewColumnWithNextPeriod(sheetname string) {
-	lastUsedCol := wf.latestColumns[sheetname]
-	sheet, err := wf.workbook.GetSheet(sheetname)
-	if err != nil {
-		fmt.Sprintln(err)
+	lastPeriodColName, _ := pe.ColumnNumberToName(next - 1)
+	lastPeriod := sheet.Cell(fmt.Sprintf("%s%d", lastPeriodColName, 2)).GetString()
+	if !strings.Contains(lastPeriod, "-") {
+		currentDate := time.Now()
+		wf.DeclareNewColumnForPeriod(fmt.Sprintf("01.01-06.01.%s", currentDate.Format("06")), sheetname)
 		return
 	}
-	lastPeriod := sheet.Cell(fmt.Sprintf("%s%d", lastUsedCol, 2)).GetString()
 	dates := strings.Split(lastPeriod, "-")
 	lastDate, err := time.Parse("02.01.06", dates[1])
 	if err != nil {
@@ -227,14 +316,37 @@ func (wf *WorkloadFile) removePeriodAtColumn(col string, sheetname string) {
 		fmt.Println(err)
 		return
 	}
-	for row := 2; row < 100; row++ {
+	for row := 2; row < wf.finalRow[sheetname]; row++ {
 		if !sheet.Cell(fmt.Sprintf("%s%d", col, row)).HasFormula() {
-			sheet.Cell(fmt.Sprintf("%s%d", col, row)).SetString("")
+			sheet.Cell(fmt.Sprintf("%s%d", col, row)).Clear()
 		}
 	}
 }
 
 // RemoveLastPeriod removes the values of the most recent added column
 func (wf *WorkloadFile) RemoveLastPeriod(sheetname string) {
-	wf.removePeriodAtColumn(wf.latestColumns[sheetname], sheetname)
+	nextCol, _ := wf.nextAndFinalColNums(sheetname)
+	if nextCol < 2 {
+		fmt.Println("no periods left to remove")
+		return
+	}
+	removeColName, _ := pe.ColumnNumberToName(nextCol - 1)
+	wf.removePeriodAtColumn(removeColName, sheetname)
+}
+
+// Save saves the workloadfile to path
+func (wf *WorkloadFile) Save(path string) {
+	wf.workbook.RemoveCalcChain()
+	err := wf.workbook.SaveToFile(path)
+	if err != nil {
+		fmt.Println(err)
+	}
+}
+
+// Validate validates the workloadfile
+func (wf *WorkloadFile) Validate() {
+	err := wf.workbook.Validate()
+	if err != nil {
+		fmt.Println(err)
+	}
 }

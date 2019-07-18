@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/AnotherCoolDude/workload/excel"
 	"github.com/spf13/cobra"
 
 	homedir "github.com/mitchellh/go-homedir"
@@ -80,15 +79,7 @@ func InitWorkloadFile() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-
 	fmt.Printf("found file: %s\n", info.Name())
-
-	file := excel.OpenWorkloadFile(WorkloadFileName)
-	for _, shName := range file.Sheetnames() {
-		fmt.Printf("%s\t", shName)
-	}
-	fmt.Println()
-
 }
 
 // initConfig reads in config file and ENV variables if set.
