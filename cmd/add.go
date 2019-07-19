@@ -16,6 +16,7 @@ limitations under the License.
 package cmd
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/AnotherCoolDude/workload/excel"
@@ -38,53 +39,44 @@ var addCmd = &cobra.Command{
 	add sorts the csv file and extracts its content. 
 	The content is then added to the emplyee workload file.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// if len(args) != 1 {
-		// 	fmt.Println("requires only one path argument")
-		// 	return
-		// }
+		if len(args) != 1 {
+			fmt.Println("requires only one path argument")
+			return
+		}
 		wf := excel.OpenWorkloadFile(WorkloadFileName)
 		//wf := excel.OpenWorkloadFile("modified.xlsx")
 
-		//read := excel.Open(args[0])
-		//colmap := excel.FilterColumns([]int{1, 2, 4, 7, 8, 9}, read)
-
-		for _, sheetname := range wf.Sheetnames()[:8] {
-			//wf.DeclareNewColumnForPeriod("new period", sheetname)
-			wf.DeclareNewColumnWithNextPeriod(sheetname)
+		read := excel.Open(args[0])
+		colmap := excel.FilterColumns([]int{1, 2, 4, 7, 8, 9}, read)
+		currentPeriodColumn := ""
+		for _, sheetname := range wf.ModifiableSheetnames() {
+			currentPeriodColumn = wf.DeclareNewColumnWithNextPeriod(sheetname)
 		}
-		wf.InsertEmployee("Testperson", excel.Creation)
-
 		//TODO: testing
+		for i := 1; i < len(colmap[1]); i++ {
+			employeeName := fmt.Sprintf("%s", colmap[2][i])
+			workhours := colmap[9][i].(float64)
+			jobnr := fmt.Sprintf("%s", colmap[8][i])
 
-		// for i := 0; i < len(colmap[1]); i++ {
-		// 	employeeName := fmt.Sprintf("%s", colmap[1][i])
-		// 	workhours, err := strconv.ParseFloat(fmt.Sprintf("%s", colmap[9][i]), 64)
-		// 	if err != nil {
-		// 		fmt.Println(err)
-		// 		continue
-		// 	}
-		// 	jobnr := fmt.Sprintf("%s", colmap[8][i])
-
-		// 	switch jobnr {
-		// 	case jobNrNoWork:
-		// 		wf.AddValueToEmployee(employeeName, workhours, wf.Sheetnames()[2])
-		// 	case jobNrOvertime:
-		// 		wf.AddValueToEmployee(employeeName, workhours, wf.Sheetnames()[7])
-		// 	case jobNrSick:
-		// 		wf.AddValueToEmployee(employeeName, workhours, wf.Sheetnames()[5])
-		// 	case jobNrVacation:
-		// 		wf.AddValueToEmployee(employeeName, workhours, wf.Sheetnames()[4])
-		// 	default:
-		// 		if caseInsensitiveContains(fmt.Sprintf("%s", colmap[7][i]), "pitch") {
-		// 			wf.AddValueToEmployee(employeeName, workhours, wf.Sheetnames()[1])
-		// 		} else if strings.Contains(jobnr, "SEIN") {
-		// 			wf.AddValueToEmployee(employeeName, workhours, wf.Sheetnames()[3])
-		// 		} else {
-		// 			wf.AddValueToEmployee(employeeName, workhours, wf.Sheetnames()[0])
-		// 		}
-		// 	}
-		// }
-		wf.Validate()
+			switch jobnr {
+			case jobNrNoWork:
+				wf.AddValueToEmployee(employeeName, workhours, wf.ModifiableSheetnames()[2], currentPeriodColumn)
+			case jobNrOvertime:
+				wf.AddValueToEmployee(employeeName, workhours, wf.ModifiableSheetnames()[7], currentPeriodColumn)
+			case jobNrSick:
+				wf.AddValueToEmployee(employeeName, workhours, wf.ModifiableSheetnames()[5], currentPeriodColumn)
+			case jobNrVacation:
+				wf.AddValueToEmployee(employeeName, workhours, wf.ModifiableSheetnames()[4], currentPeriodColumn)
+			default:
+				if caseInsensitiveContains(fmt.Sprintf("%s", colmap[7][i]), "pitch") {
+					wf.AddValueToEmployee(employeeName, workhours, wf.ModifiableSheetnames()[1], currentPeriodColumn)
+				} else if strings.Contains(jobnr, "SEIN") {
+					wf.AddValueToEmployee(employeeName, workhours, wf.ModifiableSheetnames()[3], currentPeriodColumn)
+				} else {
+					wf.AddValueToEmployee(employeeName, workhours, wf.ModifiableSheetnames()[0], currentPeriodColumn)
+				}
+			}
+		}
 		wf.Save("modified.xlsx")
 
 	},
@@ -107,4 +99,9 @@ func init() {
 func caseInsensitiveContains(s, substr string) bool {
 	s, substr = strings.ToUpper(s), strings.ToUpper(substr)
 	return strings.Contains(s, substr)
+}
+
+func convertToWorkloadFileName(name string) string {
+	separatedNames := strings.Split(name, " ")
+	return strings.TrimSpace(fmt.Sprintf("%s, %s", separatedNames[1], separatedNames[0]))
 }

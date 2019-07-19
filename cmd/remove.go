@@ -29,7 +29,7 @@ var removeCmd = &cobra.Command{
 	to erase the last added period (including the period tag)`,
 	Run: func(cmd *cobra.Command, args []string) {
 		wf := excel.OpenWorkloadFile("modified.xlsx")
-		for _, sheetname := range wf.Sheetnames()[:8] {
+		for _, sheetname := range wf.ModifiableSheetnames() {
 			wf.RemoveLastPeriod(sheetname)
 		}
 		wf.Save("modified.xlsx")
