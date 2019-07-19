@@ -31,6 +31,10 @@ const (
 	jobNrVacation = "SEIN-0001-0012"
 )
 
+var (
+	freelancer = []string{"Tina Botz", "Jörg Tacke"}
+)
+
 // addCmd represents the add command
 var addCmd = &cobra.Command{
 	Use:   "add",
@@ -44,7 +48,6 @@ var addCmd = &cobra.Command{
 			return
 		}
 		wf := excel.OpenWorkloadFile(WorkloadFileName)
-		//wf := excel.OpenWorkloadFile("modified.xlsx")
 
 		read := excel.Open(args[0])
 		colmap := excel.FilterColumns([]int{1, 2, 4, 7, 8, 9}, read)
@@ -57,6 +60,10 @@ var addCmd = &cobra.Command{
 			employeeName := fmt.Sprintf("%s", colmap[2][i])
 			workhours := colmap[9][i].(float64)
 			jobnr := fmt.Sprintf("%s", colmap[8][i])
+
+			if isFreelancer(employeeName) {
+				continue
+			}
 
 			switch jobnr {
 			case jobNrNoWork:
@@ -77,7 +84,7 @@ var addCmd = &cobra.Command{
 				}
 			}
 		}
-		wf.Save("modified.xlsx")
+		wf.Save(WorkloadFileName)
 
 	},
 }
@@ -104,4 +111,13 @@ func caseInsensitiveContains(s, substr string) bool {
 func convertToWorkloadFileName(name string) string {
 	separatedNames := strings.Split(name, " ")
 	return strings.TrimSpace(fmt.Sprintf("%s, %s", separatedNames[1], separatedNames[0]))
+}
+
+func isFreelancer(name string) bool {
+	for _, fl := range freelancer {
+		if name == fl {
+			return true
+		}
+	}
+	return false
 }

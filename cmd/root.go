@@ -26,7 +26,7 @@ import (
 )
 
 // WorkloadFileName represents the file name of the workload file
-const WorkloadFileName = "übersicht Auslastung Jan_Dez2019.xlsx"
+const WorkloadFileName = "Auslastung2019.xlsx"
 
 var cfgFile string
 
