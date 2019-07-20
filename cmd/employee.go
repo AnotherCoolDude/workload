@@ -15,6 +15,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/AnotherCoolDude/workload/excel"
 	"github.com/spf13/cobra"
 )
@@ -34,17 +36,17 @@ var employeeCmd = &cobra.Command{
 	Auszubildende/Trainee	PR`,
 	Run: func(cmd *cobra.Command, args []string) {
 		wf := excel.OpenWorkloadFile(WorkloadFileName)
-		wf.UpdateFormulas(wf.ModifiableSheetnames()[0], 1)
-		// if len(args) != 2 {
-		// 	fmt.Println("two arguments are required. The name of the new Employee, and the department, e.g. workload add employee Christian Beratung")
-		// }
-		// if !validDepartment(args[1]) {
-		// 	fmt.Println("the provided department doesnt exist. Type workload add employee --help for more informations.")
-		// 	return
-		// }
-		// wf.AddEmployee(args[0], excel.Department(args[1]))
 
-		// wf.Save("newEmployee.xlsx")
+		if len(args) != 2 {
+			fmt.Println("two arguments are required. The name of the new Employee, and the department, e.g. workload add employee Christian Beratung")
+		}
+		if !validDepartment(args[1]) {
+			fmt.Println("the provided department doesnt exist. Type workload add employee --help for more information.")
+			return
+		}
+		wf.AddEmployee(args[0], excel.Department(args[1]))
+
+		wf.Save("newEmployee.xlsx")
 	},
 }
 

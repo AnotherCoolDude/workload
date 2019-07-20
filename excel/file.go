@@ -232,6 +232,7 @@ func (wf *WorkloadFile) AddEmployee(name string, department Department) {
 	sort.Strings(employees)
 	newEmployeeIndex := sort.SearchStrings(employees, name)
 	newEmployeeRow := depRow - (len(employees) - newEmployeeIndex)
+	updatedFormulas := wf.UpdateFormulas(wf.ModifiableSheetnames()[0], newEmployeeRow)
 	err = wf.workbook.InsertRow(wf.ModifiableSheetnames()[0], newEmployeeRow)
 	if err != nil {
 		fmt.Println(err)
@@ -242,11 +243,19 @@ func (wf *WorkloadFile) AddEmployee(name string, department Department) {
 		fmt.Println(err)
 		return
 	}
+	for coords, formula := range updatedFormulas {
+		err := wf.workbook.SetCellFormula(wf.ModifiableSheetnames()[0], coords, formula)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+	}
 
 }
 
 // UpdateFormulas corrects formulas, that became incorrect by inserting a row
-func (wf *WorkloadFile) UpdateFormulas(sheetname string, belowRow int) {
+func (wf *WorkloadFile) UpdateFormulas(sheetname string, belowRow int) map[string]string {
+	formulaMap := map[string]string{}
 	formulaCoords := []string{}
 	formulaParts := [][]string{}
 	_, endCol := wf.nextAndFinalColNums(sheetname)
@@ -298,17 +307,29 @@ func (wf *WorkloadFile) UpdateFormulas(sheetname string, belowRow int) {
 			}
 			startColName, _ := excelize.ColumnNumberToName(startCoordsCol)
 			endColName, _ := excelize.ColumnNumberToName(endCoordsCol)
-			err := wf.workbook.SetCellFormula(sheetname, formulaCoords[idx], fmt.Sprintf("SUM(%s%d:%s:%d)", startColName, startCoordsRow, endColName, endCoordsRow))
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
+			//err := wf.workbook.SetCellFormula(sheetname, formulaCoords[idx], fmt.Sprintf("SUM(%s%d:%s:%d)", startColName, startCoordsRow, endColName, endCoordsRow))
+			formulaMap[formulaCoords[idx]] = fmt.Sprintf("SUM(%s%d:%s:%d)", startColName, startCoordsRow, endColName, endCoordsRow)
+			// if err != nil {
+			// 	fmt.Println(err)
+			// 	continue
+			// }
 		default:
 			// adding e.g. B1+B2+B3
-
+			coords := []string{}
+			for _, p := range parts {
+				col, row, _ := excelize.CellNameToCoordinates(p)
+				updatedCoords, _ := excelize.CoordinatesToCellName(col, row+1)
+				coords = append(coords, updatedCoords)
+			}
+			formulaMap[formulaCoords[idx]] = strings.Join(coords, "+")
+			// err := wf.workbook.SetCellFormula(sheetname, formulaCoords[idx], strings.Join(coords, "+"))
+			// if err != nil {
+			// 	fmt.Println(err)
+			// 	continue
+			// }
 		}
 	}
-
+	return formulaMap
 }
 
 // Save saves the workloadfile to path
