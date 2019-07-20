@@ -55,7 +55,7 @@ var addCmd = &cobra.Command{
 		for _, sheetname := range wf.ModifiableSheetnames() {
 			currentPeriodColumn = wf.DeclareNewColumnWithNextPeriod(sheetname)
 		}
-		//TODO: testing
+
 		for i := 1; i < len(colmap[1]); i++ {
 			employeeName := fmt.Sprintf("%s", colmap[2][i])
 			workhours := colmap[9][i].(float64)

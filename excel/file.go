@@ -2,11 +2,13 @@ package excel
 
 import (
 	"fmt"
-	"github.com/360EntSecGroup-Skylar/excelize"
+	"sort"
 	"strconv"
 
 	"strings"
 	"time"
+
+	"github.com/360EntSecGroup-Skylar/excelize"
 )
 
 // WorkloadFile represents a workload file
@@ -40,7 +42,8 @@ const (
 	PR Department = "PR"
 )
 
-func departments() []string {
+// Departments returns a list of all avaiable departments
+func Departments() []string {
 	return []string{
 		string(ManagingDirectors), string(Consulting), string(Creation), string(Production), string(Text), string(Administration), string(Training), string(PR),
 	}
@@ -198,6 +201,114 @@ func (wf *WorkloadFile) RemoveLastPeriod(sheetname string) {
 	removeColName, _ := excelize.ColumnNumberToName(nextCol - 1)
 	wf.removePeriodAtColumn(removeColName, sheetname)
 	wf.nextColumn[sheetname] = removeColName
+}
+
+// AddEmployee adds a new Employee alphabetically and in the provided department
+func (wf *WorkloadFile) AddEmployee(name string, department Department) {
+	depCoords, err := wf.workbook.SearchSheet(wf.ModifiableSheetnames()[0], string(department))
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	depCol, depRow, err := excelize.CellNameToCoordinates(depCoords[0])
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	employees := []string{}
+	for dr := depRow; dr > 2; dr-- {
+		coords, _ := excelize.CoordinatesToCellName(depCol, dr)
+		employee, err := wf.workbook.GetCellValue(wf.ModifiableSheetnames()[0], coords)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		if strings.TrimSpace(employee) == "" {
+			break
+		}
+		employees = append(employees, employee)
+	}
+	employees = append(employees, name)
+	sort.Strings(employees)
+	newEmployeeIndex := sort.SearchStrings(employees, name)
+	newEmployeeRow := depRow - (len(employees) - newEmployeeIndex)
+	err = wf.workbook.InsertRow(wf.ModifiableSheetnames()[0], newEmployeeRow)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	err = wf.workbook.SetCellStr(wf.ModifiableSheetnames()[0], fmt.Sprintf("%s%d", "A", newEmployeeRow), name)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+}
+
+// UpdateFormulas corrects formulas, that became incorrect by inserting a row
+func (wf *WorkloadFile) UpdateFormulas(sheetname string, belowRow int) {
+	formulaCoords := []string{}
+	formulaParts := [][]string{}
+	_, endCol := wf.nextAndFinalColNums(sheetname)
+	for row := belowRow; row <= wf.finalRow[sheetname]; row++ {
+		for col := 1; col <= endCol; col++ {
+			coords, _ := excelize.CoordinatesToCellName(col, row)
+			formula, err := wf.workbook.GetCellFormula(sheetname, coords)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			if formula != "" {
+				parts := strings.FieldsFunc(formula, func(c rune) bool {
+					return c == '(' || c == ';' || c == ':' || c == ')' || c == '+'
+				})
+				if len(parts) < 2 {
+					continue
+				}
+				formulaCoords = append(formulaCoords, coords)
+				formulaParts = append(formulaParts, parts)
+			}
+		}
+	}
+
+	for idx, parts := range formulaParts {
+
+		switch parts[0] {
+		case "SUM":
+			// SUM formula e.g. SUM(B1:B3)
+			startCoordsCol, startCoordsRow, _ := excelize.CellNameToCoordinates(parts[1])
+			endCoordsCol, endCoordsRow, _ := excelize.CellNameToCoordinates(parts[2])
+
+			// same col, different rows
+			if startCoordsCol == endCoordsCol {
+				name, err := wf.workbook.GetCellValue(sheetname, fmt.Sprintf("%s%d", "A", belowRow-1))
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
+				if strings.TrimSpace(name) != "" {
+					endCoordsRow++
+				} else {
+					startCoordsRow--
+				}
+				// different Cols, same row
+			} else {
+				startCoordsRow++
+				endCoordsRow++
+			}
+			startColName, _ := excelize.ColumnNumberToName(startCoordsCol)
+			endColName, _ := excelize.ColumnNumberToName(endCoordsCol)
+			err := wf.workbook.SetCellFormula(sheetname, formulaCoords[idx], fmt.Sprintf("SUM(%s%d:%s:%d)", startColName, startCoordsRow, endColName, endCoordsRow))
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+		default:
+			// adding e.g. B1+B2+B3
+
+		}
+	}
+
 }
 
 // Save saves the workloadfile to path
