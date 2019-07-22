@@ -17,6 +17,7 @@ package cmd
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/AnotherCoolDude/workload/excel"
@@ -49,8 +50,11 @@ var addCmd = &cobra.Command{
 		}
 		wf := excel.OpenWorkloadFile(WorkloadFileName)
 
-		read := excel.Open(args[0])
-		colmap := excel.FilterColumns([]int{1, 2, 4, 7, 8, 9}, read)
+		// read := excel.Open(args[0])
+		// colmap := excel.FilterColumns([]int{1, 2, 4, 7, 8, 9}, read)
+		read := excel.ReadProadExcel(args[0])
+		colmap := read.GetColumns([]int{1, 2, 4, 7, 8, 9})
+
 		currentPeriodColumn := ""
 		for _, sheetname := range wf.ModifiableSheetnames() {
 			currentPeriodColumn = wf.DeclareNewColumnWithNextPeriod(sheetname)
@@ -58,7 +62,10 @@ var addCmd = &cobra.Command{
 
 		for i := 1; i < len(colmap[1]); i++ {
 			employeeName := fmt.Sprintf("%s", colmap[2][i])
-			workhours := colmap[9][i].(float64)
+			workhours, err := strconv.ParseFloat(colmap[9][i], 64)
+			if err != nil {
+				fmt.Println(err)
+			}
 			jobnr := fmt.Sprintf("%s", colmap[8][i])
 
 			if isFreelancer(employeeName) {

@@ -1,7 +1,9 @@
 package excel
 
 import (
+	"bufio"
 	"fmt"
+	"os"
 	"sort"
 	"strconv"
 
@@ -243,6 +245,13 @@ func (wf *WorkloadFile) AddEmployee(name string, department Department) {
 		fmt.Println(err)
 		return
 	}
+
+	wf.Save("newEmployee.xlsx")
+	fmt.Println("open the workloadfile, click 'delete' when asked and save the file again. Then press Enter")
+	reader := bufio.NewReader(os.Stdin)
+	reader.ReadString('\n')
+
+	wf = OpenWorkloadFile("newEmployee.xlsx")
 	for coords, formula := range updatedFormulas {
 		err := wf.workbook.SetCellFormula(wf.ModifiableSheetnames()[0], coords, formula)
 		if err != nil {
