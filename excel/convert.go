@@ -28,7 +28,7 @@ func ConvertCSV(path string) *excelize.File {
 	// 	fmt.Println(scanner.Text())
 	// }
 
-	reader := csv.NewReader() //csv.NewReader(ReplaceSoloCarriageReturns(csvFile))
+	reader := csv.NewReader(strings.NewReader(corrected)) //csv.NewReader(ReplaceSoloCarriageReturns(csvFile))
 	reader.Comma = rune(';')
 	reader.LazyQuotes = true
 
