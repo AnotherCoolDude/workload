@@ -34,7 +34,7 @@ var convertCmd = &cobra.Command{
 			fmt.Println("wrong input file")
 			os.Exit(0)
 		}
-		f := excel.ConvertCSV(args[0])
+		f := excel.ConvertCSV(args[0], true)
 		trimmed := strings.TrimSuffix(args[0], "csv")
 		f.SaveAs(trimmed + "xlsx")
 	},

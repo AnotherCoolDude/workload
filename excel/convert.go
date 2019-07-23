@@ -12,7 +12,7 @@ import (
 )
 
 // ConvertCSV converts a csv file to an excel file
-func ConvertCSV(path string) *excelize.File {
+func ConvertCSV(path string, verbose bool) *excelize.File {
 	csvFile, err := os.Open(path)
 	if err != nil {
 		fmt.Println(err)
@@ -20,58 +20,61 @@ func ConvertCSV(path string) *excelize.File {
 	}
 	defer csvFile.Close()
 
-	secondFile, _ := os.Open(path)
-	defer secondFile.Close()
-	r := bufio.NewReader(secondFile)
+	r := bufio.NewReader(csvFile)
 	var str string
 	var correctedCSV string
 	lines := []string{}
+	c := 0
 	for {
 		str, err = r.ReadString('\r')
 		if err != nil {
 			break
 		}
-		strTrimmed := strings.TrimFunc(str, func(r rune) bool {
-			if r == '\n' || r == '\r' {
-				return true
-			}
-			return false
-		})
-		if !strings.ContainsAny(strTrimmed, "\"") {
+		if str == "" {
 			continue
 		}
-		if strTrimmed[0] != '"' {
+		if c < 2 {
+			fmt.Printf("%q\n", str)
+			c++
+		}
+
+		// strTrimmed := strings.TrimFunc(str, func(r rune) bool {
+		// 	if r == '\n' || r == '\r' {
+		// 		return true
+		// 	}
+		// 	return false
+		// })
+		if !strings.ContainsAny(str, "\"") {
+			continue
+		}
+		if str[0] != '"' {
 			previousStr := lines[len(lines)-1]
-			//fmt.Printf("prev: %s\n", previousStr)
-			//fmt.Printf("curr: %s\n", str)
 			str = previousStr[:len(previousStr)-1] + " " + str
-			//fmt.Printf("new: %s\n", str)
 			lines = lines[:len(lines)-1]
 		}
 		splitted := strings.Split(str, ";")
 		parts := []string{}
-		fmt.Println(splitted[len(splitted)-1])
+		//fmt.Println(splitted[len(splitted)-1])
+
 		for _, s := range splitted {
-
-			correctedQutoes := strings.ReplaceAll(s[1:len(s)-1], "\"", "\"\"")
-			parts = append(parts, "\""+correctedQutoes+"\"")
-
+			trimmed := strings.TrimFunc(s, func(r rune) bool {
+				if r == '\r' || r == '\n' {
+					return true
+				}
+				return false
+			})
+			correctedQuotes := strings.ReplaceAll(trimmed[1:len(trimmed)-1], "\"", "\"\"")
+			parts = append(parts, "\""+correctedQuotes+"\"")
 		}
-		// count := len(parts)
-		// for i := 0; i < count; i++ {
-		// 	if strings.Count(parts[i], "\"") > 2 {
-		// 		fmt.Println(parts[i])
-		// 		parts = append(parts[:i], parts[i+1:]...)
-		// 		count--
-		// 	}
-		// }
 		lines = append(lines, strings.Join(parts, ";"))
 	}
-
-	for idx, line := range lines {
-		sep := strings.Split(line, ";")
-		fmt.Printf("%d [%d]: %s\n", idx, len(sep), line)
+	if verbose {
+		for idx, line := range lines {
+			sep := strings.Split(line, ";")
+			fmt.Printf("%d [%d]: %s\n", idx, len(sep), line)
+		}
 	}
+
 	correctedCSV = strings.Join(lines, "\n")
 	if err != io.EOF {
 		fmt.Println(err)
