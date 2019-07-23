@@ -35,6 +35,7 @@ const (
 
 var (
 	freelancer = []string{"Tina Botz", "Jörg Tacke"}
+	tempPath   = ".tempxlsx.xlsx"
 )
 
 // addCmd represents the add command
@@ -49,18 +50,17 @@ var addCmd = &cobra.Command{
 			fmt.Println("requires only one path argument")
 			return
 		}
-		var wf *excel.WorkloadFile
+		var ttfilePath string
 		if strings.HasSuffix(args[0], "csv") {
-			f := excel.ConvertCSV(args[0], false)
-			wf = excel.OpenWorkloadFile(f.Path)
+			converted := excel.ConvertCSV(args[0], false)
+			converted.SaveAs(tempPath)
+			ttfilePath = tempPath
 		} else if strings.HasSuffix(args[0], "xlsx") {
-			wf = excel.OpenWorkloadFile(WorkloadFileName)
-		} else {
-			fmt.Println("wrong suffix, only csv and xlsx are allowed")
-			os.Exit(0)
+			ttfilePath = args[0]
 		}
 
-		read := excel.ReadProadExcel(args[0])
+		wf := excel.OpenWorkloadFile(WorkloadFileName)
+		read := excel.ReadProadExcel(ttfilePath)
 		colmap := read.GetColumns([]int{1, 2, 4, 7, 8, 9})
 
 		currentPeriodColumn := ""
@@ -70,11 +70,8 @@ var addCmd = &cobra.Command{
 
 		for i := 1; i < len(colmap[1]); i++ {
 			employeeName := fmt.Sprintf("%s", colmap[2][i])
-			workhours, err := strconv.ParseFloat(colmap[9][i], 64)
-			if err != nil {
-				fmt.Println(err)
-			}
-			jobnr := fmt.Sprintf("%s", colmap[8][i])
+			workhours := parseFloat(colmap[9][i])
+			jobnr := colmap[8][i]
 
 			if isFreelancer(employeeName) {
 				continue
@@ -100,7 +97,18 @@ var addCmd = &cobra.Command{
 			}
 		}
 		wf.Save(WorkloadFileName)
-
+		// delete temp file
+		wd, err := os.Getwd()
+		if err != nil {
+			fmt.Println(err)
+		}
+		_, err = os.Stat(wd + "/" + tempPath)
+		if os.IsExist(err) {
+			err = os.Remove(wd + "/" + tempPath)
+			if err != nil {
+				fmt.Println(err)
+			}
+		}
 	},
 }
 
@@ -135,4 +143,17 @@ func isFreelancer(name string) bool {
 		}
 	}
 	return false
+}
+
+func parseFloat(value string) float64 {
+	parseValue := value
+	if strings.IndexAny(value, ",") > -1 {
+		parseValue = strings.Replace(value, ",", ".", 1)
+	}
+	float, err := strconv.ParseFloat(parseValue, 64)
+	if err != nil {
+		fmt.Println(err)
+		return 0.0
+	}
+	return float
 }
