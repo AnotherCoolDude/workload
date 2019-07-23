@@ -184,24 +184,30 @@ func (wf *WorkloadFile) DeclareNewColumnWithNextPeriod(sheetname string) string 
 
 }
 
-func (wf *WorkloadFile) removePeriodAtColumn(col string, sheetname string) {
+func (wf *WorkloadFile) removePeriodAtColumn(col string, sheetname string, rowExeptions []int) {
 	for row := 2; row < wf.finalRow[sheetname]; row++ {
+		isExepetion := false
+		for _, exeption := range rowExeptions {
+			if row == exeption {
+				isExepetion = true
+			}
+		}
 		formula, _ := wf.workbook.GetCellFormula(sheetname, fmt.Sprintf("%s%d", col, row))
-		if strings.TrimSpace(formula) == "" {
+		if strings.TrimSpace(formula) == "" && !isExepetion {
 			wf.workbook.SetCellValue(sheetname, fmt.Sprintf("%s%d", col, row), "")
 		}
 	}
 }
 
 // RemoveLastPeriod removes the values of the most recent added column
-func (wf *WorkloadFile) RemoveLastPeriod(sheetname string) {
+func (wf *WorkloadFile) RemoveLastPeriod(sheetname string, rowExeptions []int) {
 	nextCol, _ := wf.nextAndFinalColNums(sheetname)
 	if nextCol < 2 {
 		fmt.Println("no periods left to remove")
 		return
 	}
 	removeColName, _ := excelize.ColumnNumberToName(nextCol - 1)
-	wf.removePeriodAtColumn(removeColName, sheetname)
+	wf.removePeriodAtColumn(removeColName, sheetname, rowExeptions)
 	wf.nextColumn[sheetname] = removeColName
 }
 

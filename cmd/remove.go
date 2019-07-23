@@ -21,6 +21,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	rowExeptions = []int{3, 5, 6}
+)
+
 // removeCmd represents the remove command
 var removeCmd = &cobra.Command{
 	Use:   "remove",
@@ -30,7 +34,7 @@ var removeCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		wf := excel.OpenWorkloadFile(WorkloadFileName)
 		for _, sheetname := range wf.ModifiableSheetnames() {
-			wf.RemoveLastPeriod(sheetname)
+			wf.RemoveLastPeriod(sheetname, rowExeptions)
 		}
 		wf.Save(WorkloadFileName)
 	},

@@ -17,6 +17,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -48,10 +49,17 @@ var addCmd = &cobra.Command{
 			fmt.Println("requires only one path argument")
 			return
 		}
-		wf := excel.OpenWorkloadFile(WorkloadFileName)
+		var wf *excel.WorkloadFile
+		if strings.HasSuffix(args[0], "csv") {
+			f := excel.ConvertCSV(args[0], false)
+			wf = excel.OpenWorkloadFile(f.Path)
+		} else if strings.HasSuffix(args[0], "xlsx") {
+			wf = excel.OpenWorkloadFile(WorkloadFileName)
+		} else {
+			fmt.Println("wrong suffix, only csv and xlsx are allowed")
+			os.Exit(0)
+		}
 
-		// read := excel.Open(args[0])
-		// colmap := excel.FilterColumns([]int{1, 2, 4, 7, 8, 9}, read)
 		read := excel.ReadProadExcel(args[0])
 		colmap := read.GetColumns([]int{1, 2, 4, 7, 8, 9})
 
