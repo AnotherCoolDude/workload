@@ -5,7 +5,6 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -21,14 +20,64 @@ func ConvertCSV(path string) *excelize.File {
 	}
 	defer csvFile.Close()
 
-	f, _ := ioutil.ReadFile(path)
-	corrected := strings.Replace(string(f), "\r", "\n", -1)
-	// scanner := bufio.NewScanner(csvFile)
-	// for scanner.Scan() {
-	// 	fmt.Println(scanner.Text())
-	// }
+	secondFile, _ := os.Open(path)
+	defer secondFile.Close()
+	r := bufio.NewReader(secondFile)
+	var str string
+	var correctedCSV string
+	lines := []string{}
+	for {
+		str, err = r.ReadString('\r')
+		if err != nil {
+			break
+		}
+		strTrimmed := strings.TrimFunc(str, func(r rune) bool {
+			if r == '\n' || r == '\r' {
+				return true
+			}
+			return false
+		})
+		if !strings.ContainsAny(strTrimmed, "\"") {
+			continue
+		}
+		if strTrimmed[0] != '"' {
+			previousStr := lines[len(lines)-1]
+			//fmt.Printf("prev: %s\n", previousStr)
+			//fmt.Printf("curr: %s\n", str)
+			str = previousStr[:len(previousStr)-1] + " " + str
+			//fmt.Printf("new: %s\n", str)
+			lines = lines[:len(lines)-1]
+		}
+		splitted := strings.Split(str, ";")
+		parts := []string{}
+		fmt.Println(splitted[len(splitted)-1])
+		for _, s := range splitted {
 
-	reader := csv.NewReader(strings.NewReader(corrected)) //csv.NewReader(ReplaceSoloCarriageReturns(csvFile))
+			correctedQutoes := strings.ReplaceAll(s[1:len(s)-1], "\"", "\"\"")
+			parts = append(parts, "\""+correctedQutoes+"\"")
+
+		}
+		// count := len(parts)
+		// for i := 0; i < count; i++ {
+		// 	if strings.Count(parts[i], "\"") > 2 {
+		// 		fmt.Println(parts[i])
+		// 		parts = append(parts[:i], parts[i+1:]...)
+		// 		count--
+		// 	}
+		// }
+		lines = append(lines, strings.Join(parts, ";"))
+	}
+
+	for idx, line := range lines {
+		sep := strings.Split(line, ";")
+		fmt.Printf("%d [%d]: %s\n", idx, len(sep), line)
+	}
+	correctedCSV = strings.Join(lines, "\n")
+	if err != io.EOF {
+		fmt.Println(err)
+	}
+
+	reader := csv.NewReader(strings.NewReader(correctedCSV)) //csv.NewReader(ReplaceSoloCarriageReturns(csvFile))
 	reader.Comma = rune(';')
 	reader.LazyQuotes = true
 
@@ -40,13 +89,12 @@ func ConvertCSV(path string) *excelize.File {
 		for col, value := range fields {
 			coords, _ := excelize.CoordinatesToCellName(col+1, rows)
 			excelFile.SetCellValue(excelFile.GetSheetName(excelFile.GetActiveSheetIndex()), coords, value)
-			fmt.Printf("%s\t", value)
-			fields, err = reader.Read()
+			//fmt.Printf("%s\t", value)
 		}
-		fmt.Println()
+		fields, err = reader.Read()
 		rows++
 	}
-
+	fmt.Printf("Rows in excel file: %d\n", rows)
 	if err != nil {
 		fmt.Println(err)
 	}
