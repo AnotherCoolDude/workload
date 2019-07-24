@@ -26,9 +26,12 @@ import (
 )
 
 // WorkloadFileName represents the file name of the workload file
-const WorkloadFileName = "Auslastung2019.xlsx"
+const WorkloadFileName = "Auslastung.xlsx"
 
-var cfgFile string
+var (
+	cfgFile string
+	verbose bool
+)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -63,6 +66,7 @@ func init() {
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	// rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	addCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "prints additional information")
 }
 
 // InitWorkloadFile checks wether the excel file for employee workload is available
@@ -75,7 +79,7 @@ func InitWorkloadFile() {
 
 	info, err := os.Stat(wd + "/" + WorkloadFileName)
 	if os.IsNotExist(err) {
-		fmt.Println("couldn't find workload file. File must be placed in same ordner as the executable")
+		fmt.Printf("couldn't find workload file. File must be placed in same ordner as the executable and named as %s\n", WorkloadFileName)
 		fmt.Println(err)
 		os.Exit(1)
 	}

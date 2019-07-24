@@ -40,7 +40,6 @@ const (
 var (
 	freelancer = []string{"Tina Botz", "Jörg Tacke"}
 	tempPath   = ".tempxlsx.xlsx"
-	verbose    bool
 )
 
 // addCmd represents the add command
@@ -87,7 +86,7 @@ var addCmd = &cobra.Command{
 		}
 
 		if strings.HasSuffix(ttfilePath, "csv") {
-			converted := excel.ConvertCSV(ttfilePath, false)
+			converted := excel.ConvertCSV(ttfilePath, verbose)
 			converted.SaveAs(tempPath)
 			ttfilePath = tempPath
 		}
@@ -170,7 +169,7 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// addCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-	addCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "prints the process of inserting the records into the workloadfile")
+
 }
 
 func caseInsensitiveContains(s, substr string) bool {

@@ -52,7 +52,7 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// convertCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-	addCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "prints the process of converting the csv file into the xlsx file")
+
 }
 
 func validatePathAndFile(path string) bool {
