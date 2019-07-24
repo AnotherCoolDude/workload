@@ -32,7 +32,7 @@ func ConvertCSV(path string, verbose bool) *excelize.File {
 		}
 		str = strings.TrimLeft(str, "\n")
 
-		if str[0] != '"' {
+		if str[0] != '"' && len(lines) > 0 {
 			previousStr := lines[len(lines)-1]
 			str = previousStr[:len(previousStr)-1] + " " + str
 			lines = lines[:len(lines)-1]
@@ -48,6 +48,9 @@ func ConvertCSV(path string, verbose bool) *excelize.File {
 				return false
 			})
 			correctedQuotes := strings.ReplaceAll(trimmed[1:len(trimmed)-1], "\"", "\"\"")
+			if trimmed[len(trimmed)-1] != '"' {
+				correctedQuotes = correctedQuotes + string(trimmed[len(trimmed)-1])
+			}
 			parts = append(parts, "\""+correctedQuotes+"\"")
 		}
 		lines = append(lines, strings.Join(parts, ";"))
@@ -64,7 +67,7 @@ func ConvertCSV(path string, verbose bool) *excelize.File {
 		fmt.Println(err)
 	}
 
-	reader := csv.NewReader(strings.NewReader(correctedCSV)) //csv.NewReader(ReplaceSoloCarriageReturns(csvFile))
+	reader := csv.NewReader(strings.NewReader(correctedCSV))
 	reader.Comma = rune(';')
 
 	excelFile := excelize.NewFile()
@@ -75,14 +78,16 @@ func ConvertCSV(path string, verbose bool) *excelize.File {
 		for col, value := range fields {
 			coords, _ := excelize.CoordinatesToCellName(col+1, rows)
 			excelFile.SetCellValue(excelFile.GetSheetName(excelFile.GetActiveSheetIndex()), coords, value)
-			//fmt.Printf("%s\t", value)
 		}
 		fields, err = reader.Read()
 		rows++
 	}
-	fmt.Printf("Rows in excel file: %d\n", rows)
-	if err != nil {
+	fmt.Printf("%d rows extracted from csv file\n", rows-1)
+	if err != nil && err != io.EOF {
 		fmt.Println(err)
+	}
+	if verbose {
+		excelFile.SaveAs("convertedCSV.xlsx")
 	}
 	return excelFile
 }

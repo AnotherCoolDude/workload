@@ -17,9 +17,13 @@ package cmd
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/manifoldco/promptui"
 
 	"github.com/AnotherCoolDude/workload/excel"
 
@@ -36,6 +40,7 @@ const (
 var (
 	freelancer = []string{"Tina Botz", "Jörg Tacke"}
 	tempPath   = ".tempxlsx.xlsx"
+	verbose    bool
 )
 
 // addCmd represents the add command
@@ -46,17 +51,45 @@ var addCmd = &cobra.Command{
 	add sorts the csv file and extracts its content. 
 	The content is then added to the emplyee workload file.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) != 1 {
-			fmt.Println("requires only one path argument")
+
+		var ttfilePath string
+		if len(args) == 0 {
+			wd, files := checkForPossibleFiles()
+			if len(files) == 0 {
+				fmt.Println("no files found")
+				return
+			}
+			prompt := promptui.Select{
+				Label: "Choose file to be added to workload file",
+				Items: files,
+			}
+			_, result, err := prompt.Run()
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			ttfilePath = wd + "/" + result
+		} else if len(args) == 1 {
+			_, file := filepath.Split(args[0])
+			if file == WorkloadFileName {
+				fmt.Println("cannot take workloadfile as argument")
+				return
+			}
+			suf := filepath.Ext(args[0])
+			if suf != ".csv" && suf != ".xlsx" {
+				fmt.Println("provided file has wrong suffix")
+				return
+			}
+			ttfilePath = args[0]
+		} else {
+			fmt.Println("requires one path argument")
 			return
 		}
-		var ttfilePath string
-		if strings.HasSuffix(args[0], "csv") {
-			converted := excel.ConvertCSV(args[0], false)
+
+		if strings.HasSuffix(ttfilePath, "csv") {
+			converted := excel.ConvertCSV(ttfilePath, false)
 			converted.SaveAs(tempPath)
 			ttfilePath = tempPath
-		} else if strings.HasSuffix(args[0], "xlsx") {
-			ttfilePath = args[0]
 		}
 
 		wf := excel.OpenWorkloadFile(WorkloadFileName)
@@ -68,33 +101,44 @@ var addCmd = &cobra.Command{
 			currentPeriodColumn = wf.DeclareNewColumnWithNextPeriod(sheetname)
 		}
 
-		for i := 1; i < len(colmap[1]); i++ {
-			employeeName := fmt.Sprintf("%s", colmap[2][i])
+		for i := 0; i < len(colmap[1]); i++ {
+			employeeName := colmap[2][i]
 			workhours := parseFloat(colmap[9][i])
 			jobnr := colmap[8][i]
-
+			var sheetname string
 			if isFreelancer(employeeName) {
 				continue
 			}
 
 			switch jobnr {
 			case jobNrNoWork:
+				sheetname = wf.ModifiableSheetnames()[2]
 				wf.AddValueToEmployee(employeeName, workhours, wf.ModifiableSheetnames()[2], currentPeriodColumn)
 			case jobNrOvertime:
+				sheetname = wf.ModifiableSheetnames()[7]
 				wf.AddValueToEmployee(employeeName, workhours, wf.ModifiableSheetnames()[7], currentPeriodColumn)
 			case jobNrSick:
+				sheetname = wf.ModifiableSheetnames()[5]
 				wf.AddValueToEmployee(employeeName, workhours, wf.ModifiableSheetnames()[5], currentPeriodColumn)
 			case jobNrVacation:
+				sheetname = wf.ModifiableSheetnames()[4]
 				wf.AddValueToEmployee(employeeName, workhours, wf.ModifiableSheetnames()[4], currentPeriodColumn)
 			default:
 				if caseInsensitiveContains(fmt.Sprintf("%s", colmap[7][i]), "pitch") {
+					sheetname = wf.ModifiableSheetnames()[1]
 					wf.AddValueToEmployee(employeeName, workhours, wf.ModifiableSheetnames()[1], currentPeriodColumn)
 				} else if strings.Contains(jobnr, "SEIN") {
+					sheetname = wf.ModifiableSheetnames()[3]
 					wf.AddValueToEmployee(employeeName, workhours, wf.ModifiableSheetnames()[3], currentPeriodColumn)
 				} else {
+					sheetname = wf.ModifiableSheetnames()[0]
 					wf.AddValueToEmployee(employeeName, workhours, wf.ModifiableSheetnames()[0], currentPeriodColumn)
 				}
 			}
+			if verbose {
+				fmt.Printf("[%s] %.2f added to %s\n", employeeName, workhours, sheetname)
+			}
+
 		}
 		wf.Save(WorkloadFileName)
 		// delete temp file
@@ -103,12 +147,14 @@ var addCmd = &cobra.Command{
 			fmt.Println(err)
 		}
 		_, err = os.Stat(wd + "/" + tempPath)
-		if os.IsExist(err) {
-			err = os.Remove(wd + "/" + tempPath)
-			if err != nil {
-				fmt.Println(err)
-			}
+		if os.IsNotExist(err) {
+			return
 		}
+		err = os.Remove(wd + "/" + tempPath)
+		if err != nil {
+			fmt.Println(err)
+		}
+
 	},
 }
 
@@ -124,6 +170,7 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// addCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	addCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "prints the process of inserting the records into the workloadfile")
 }
 
 func caseInsensitiveContains(s, substr string) bool {
@@ -156,4 +203,34 @@ func parseFloat(value string) float64 {
 		return 0.0
 	}
 	return float
+}
+
+func checkForPossibleFiles() (workingDir string, files []string) {
+	wd, err := os.Getwd()
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(wd)
+	infos, err := ioutil.ReadDir(wd)
+	if err != nil {
+		fmt.Println(err)
+	}
+	proadFiles := []string{}
+	for _, info := range infos {
+
+		if info.IsDir() {
+			continue
+		}
+		if info.Name() == WorkloadFileName {
+			continue
+		}
+		ext := filepath.Ext(info.Name())
+		if ext != ".csv" && ext != ".xlsx" {
+			continue
+		}
+
+		proadFiles = append(proadFiles, info.Name())
+	}
+	return wd, proadFiles
+
 }

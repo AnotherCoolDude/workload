@@ -34,7 +34,7 @@ var convertCmd = &cobra.Command{
 			fmt.Println("wrong input file")
 			os.Exit(0)
 		}
-		f := excel.ConvertCSV(args[0], true)
+		f := excel.ConvertCSV(args[0], verbose)
 		trimmed := strings.TrimSuffix(args[0], "csv")
 		f.SaveAs(trimmed + "xlsx")
 	},
@@ -52,6 +52,7 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// convertCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	addCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "prints the process of converting the csv file into the xlsx file")
 }
 
 func validatePathAndFile(path string) bool {
