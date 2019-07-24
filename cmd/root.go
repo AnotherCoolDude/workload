@@ -25,12 +25,10 @@ import (
 	"github.com/spf13/viper"
 )
 
-// WorkloadFileName represents the file name of the workload file
-const WorkloadFileName = "Auslastung.xlsx"
-
 var (
-	cfgFile string
-	verbose bool
+	cfgFile          string
+	verbose          bool
+	workloadFileName string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -75,15 +73,29 @@ func InitWorkloadFile() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(wd)
+	fmt.Printf("current working directory: %s\n", wd)
 
-	info, err := os.Stat(wd + "/" + WorkloadFileName)
+	viper.AddConfigPath(wd)
+	viper.SetConfigName("workload")
+	err = viper.ReadInConfig()
+	if err != nil {
+		fmt.Println("no config file found. Creating a new one.")
+		viper.SetDefault("workloadfilename", "Auslastung.xlsx")
+		viper.SetDefault("workloadPath", wd)
+		err = viper.SafeWriteConfig()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
+	workloadFileName = fmt.Sprintf("%s", viper.Get("workloadfilename"))
+
+	_, err = os.Stat(wd + "/" + workloadFileName)
 	if os.IsNotExist(err) {
-		fmt.Printf("couldn't find workload file. File must be placed in same ordner as the executable and named as %s\n", WorkloadFileName)
+		fmt.Printf("couldn't find workload file. File must be placed in same ordner as the executable and named as %s\n", workloadFileName)
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	fmt.Printf("found file: %s\n", info.Name())
+
 }
 
 // initConfig reads in config file and ENV variables if set.

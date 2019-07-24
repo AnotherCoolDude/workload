@@ -70,7 +70,7 @@ var addCmd = &cobra.Command{
 			ttfilePath = wd + "/" + result
 		} else if len(args) == 1 {
 			_, file := filepath.Split(args[0])
-			if file == WorkloadFileName {
+			if file == workloadFileName {
 				fmt.Println("cannot take workloadfile as argument")
 				return
 			}
@@ -91,7 +91,7 @@ var addCmd = &cobra.Command{
 			ttfilePath = tempPath
 		}
 
-		wf := excel.OpenWorkloadFile(WorkloadFileName)
+		wf := excel.OpenWorkloadFile(workloadFileName)
 		read := excel.ReadProadExcel(ttfilePath)
 		colmap := read.GetColumns([]int{1, 2, 4, 7, 8, 9})
 
@@ -139,7 +139,7 @@ var addCmd = &cobra.Command{
 			}
 
 		}
-		wf.Save(WorkloadFileName)
+		wf.Save(workloadFileName)
 		// delete temp file
 		wd, err := os.Getwd()
 		if err != nil {
@@ -220,7 +220,7 @@ func checkForPossibleFiles() (workingDir string, files []string) {
 		if info.IsDir() {
 			continue
 		}
-		if info.Name() == WorkloadFileName {
+		if info.Name() == workloadFileName {
 			continue
 		}
 		ext := filepath.Ext(info.Name())

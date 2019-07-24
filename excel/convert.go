@@ -24,19 +24,30 @@ func ConvertCSV(path string, verbose bool) *excelize.File {
 	var str string
 	var correctedCSV string
 	lines := []string{}
-
+	tempStr := ""
 	for {
 		str, err = r.ReadString('\r')
 		if err != nil {
 			break
 		}
-		str = strings.TrimLeft(str, "\n")
 
-		if str[0] != '"' && len(lines) > 0 {
-			previousStr := lines[len(lines)-1]
-			str = previousStr[:len(previousStr)-1] + " " + str
-			lines = lines[:len(lines)-1]
+		str = strings.TrimFunc(str, func(r rune) bool {
+			if r == '\r' || r == '\n' {
+				return true
+			}
+			return false
+		})
+
+		if string(str[len(str)-1]) != "\"" {
+			tempStr = tempStr + str
+			continue
 		}
+
+		if tempStr != "" {
+			str = tempStr + " " + str
+			tempStr = ""
+		}
+
 		splitted := strings.Split(str, ";")
 		parts := []string{}
 
@@ -47,6 +58,7 @@ func ConvertCSV(path string, verbose bool) *excelize.File {
 				}
 				return false
 			})
+
 			correctedQuotes := strings.ReplaceAll(trimmed[1:len(trimmed)-1], "\"", "\"\"")
 			if trimmed[len(trimmed)-1] != '"' {
 				correctedQuotes = correctedQuotes + string(trimmed[len(trimmed)-1])

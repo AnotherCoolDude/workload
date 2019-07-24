@@ -32,11 +32,11 @@ var removeCmd = &cobra.Command{
 	Long: `when adding a wrong set of data for a period, remove can be used
 	to erase the last added period (including the period tag)`,
 	Run: func(cmd *cobra.Command, args []string) {
-		wf := excel.OpenWorkloadFile(WorkloadFileName)
+		wf := excel.OpenWorkloadFile(workloadFileName)
 		for _, sheetname := range wf.ModifiableSheetnames() {
 			wf.RemoveLastPeriod(sheetname, rowExeptions)
 		}
-		wf.Save(WorkloadFileName)
+		wf.Save(workloadFileName)
 	},
 }
 

@@ -35,7 +35,7 @@ var employeeCmd = &cobra.Command{
 
 	Auszubildende/Trainee	PR`,
 	Run: func(cmd *cobra.Command, args []string) {
-		wf := excel.OpenWorkloadFile(WorkloadFileName)
+		wf := excel.OpenWorkloadFile(workloadFileName)
 
 		if len(args) != 2 {
 			fmt.Println("two arguments are required. The name of the new Employee, and the department, e.g. workload add employee Christian Beratung")
