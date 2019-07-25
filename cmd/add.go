@@ -209,7 +209,6 @@ func checkForPossibleFiles() (workingDir string, files []string) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println(wd)
 	infos, err := ioutil.ReadDir(wd)
 	if err != nil {
 		fmt.Println(err)
