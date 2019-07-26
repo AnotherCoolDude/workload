@@ -82,6 +82,7 @@ func InitWorkloadFile() {
 		fmt.Println("no config file found. Creating a new one.")
 		viper.SetDefault("workloadfilename", "Auslastung.xlsx")
 		viper.SetDefault("workloadPath", wd)
+		viper.SetDefault("freelancer", []string{"Tina Botz", "Jörg Tacke"})
 		err = viper.WriteConfigAs("workloadConfig.json")
 		if err != nil {
 			fmt.Println("-----")

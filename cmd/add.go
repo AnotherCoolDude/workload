@@ -23,6 +23,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/spf13/viper"
+
 	"github.com/manifoldco/promptui"
 
 	"github.com/AnotherCoolDude/workload/excel"
@@ -38,7 +40,7 @@ const (
 )
 
 var (
-	freelancer = []string{"Tina Botz", "Jörg Tacke"}
+	freelancer []string
 	tempPath   = ".tempxlsx.xlsx"
 )
 
@@ -52,6 +54,8 @@ var addCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		var ttfilePath string
+		freelancer = viper.GetStringSlice("freelancer")
+
 		if len(args) == 0 {
 			wd, files := checkForPossibleFiles()
 			if len(files) == 0 {
