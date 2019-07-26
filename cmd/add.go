@@ -23,6 +23,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/schollz/progressbar"
+
 	"github.com/spf13/viper"
 
 	"github.com/manifoldco/promptui"
@@ -104,6 +106,8 @@ var addCmd = &cobra.Command{
 			currentPeriodColumn = wf.DeclareNewColumnWithNextPeriod(sheetname)
 		}
 
+		bar := progressbar.NewOptions(len(colmap[1])-len(freelancer), progressbar.OptionShowCount())
+
 		for i := 0; i < len(colmap[1]); i++ {
 			employeeName := colmap[2][i]
 			workhours := parseFloat(colmap[9][i])
@@ -140,9 +144,12 @@ var addCmd = &cobra.Command{
 			}
 			if verbose {
 				fmt.Printf("[%s] %.2f added to %s\n", employeeName, workhours, sheetname)
+			} else {
+				bar.Add(1)
 			}
-
 		}
+		bar.Finish()
+		fmt.Println()
 		wf.Save(workloadFileName)
 		// delete temp file
 		wd, err := os.Getwd()
