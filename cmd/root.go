@@ -17,7 +17,9 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -69,19 +71,20 @@ func init() {
 
 // InitWorkloadFile checks wether the excel file for employee workload is available
 func InitWorkloadFile() {
-	wd, err := os.Getwd()
+	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
-	fmt.Printf("current working directory: %s\n", wd)
+	dir += "/"
+	fmt.Printf("current working directory: %s\n", dir)
 
-	viper.AddConfigPath(wd)
+	viper.AddConfigPath(dir)
 	viper.SetConfigName("workloadConfig")
 	err = viper.ReadInConfig()
 	if err != nil {
 		fmt.Println("no config file found. Creating a new one.")
 		viper.SetDefault("workloadfilename", "Auslastung.xlsx")
-		viper.SetDefault("workloadPath", wd)
+		viper.SetDefault("workloadPath", dir)
 		viper.SetDefault("freelancer", []string{"Tina Botz", "Jörg Tacke"})
 		err = viper.WriteConfigAs("workloadConfig.json")
 		if err != nil {
@@ -89,9 +92,9 @@ func InitWorkloadFile() {
 			fmt.Println(err)
 		}
 	}
-	workloadFileName = fmt.Sprintf("%s", viper.Get("workloadfilename"))
+	workloadFileName = viper.GetString("workloadfilename")
 
-	_, err = os.Stat(wd + "/" + workloadFileName)
+	_, err = os.Stat(dir + workloadFileName)
 	if os.IsNotExist(err) {
 		fmt.Printf("couldn't find workload file. File must be placed in same ordner as the executable and named as %s\n", workloadFileName)
 		fmt.Println(err)

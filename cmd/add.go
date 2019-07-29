@@ -55,11 +55,12 @@ var addCmd = &cobra.Command{
 	The content is then added to the emplyee workload file.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
+		workloadPath := viper.GetString("workloadPath")
 		var ttfilePath string
 		freelancer = viper.GetStringSlice("freelancer")
 
 		if len(args) == 0 {
-			wd, files := checkForPossibleFiles()
+			files := checkForPossibleFiles()
 			if len(files) == 0 {
 				fmt.Println("no files found")
 				return
@@ -73,7 +74,7 @@ var addCmd = &cobra.Command{
 				fmt.Println(err)
 				return
 			}
-			ttfilePath = wd + "/" + result
+			ttfilePath = workloadPath + result
 		} else if len(args) == 1 {
 			_, file := filepath.Split(args[0])
 			if file == workloadFileName {
@@ -97,7 +98,7 @@ var addCmd = &cobra.Command{
 			ttfilePath = tempPath
 		}
 
-		wf := excel.OpenWorkloadFile(workloadFileName)
+		wf := excel.OpenWorkloadFile(workloadPath + workloadFileName)
 		read := excel.ReadProadExcel(ttfilePath)
 		colmap := read.GetColumns([]int{1, 2, 4, 7, 8, 9})
 
@@ -150,17 +151,14 @@ var addCmd = &cobra.Command{
 		}
 		bar.Finish()
 		fmt.Println()
-		wf.Save(workloadFileName)
+		wf.Save(workloadPath + workloadFileName)
 		// delete temp file
-		wd, err := os.Getwd()
-		if err != nil {
-			fmt.Println(err)
-		}
-		_, err = os.Stat(wd + "/" + tempPath)
+
+		_, err := os.Stat(workloadPath + tempPath)
 		if os.IsNotExist(err) {
 			return
 		}
-		err = os.Remove(wd + "/" + tempPath)
+		err = os.Remove(workloadPath + tempPath)
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -215,12 +213,9 @@ func parseFloat(value string) float64 {
 	return float
 }
 
-func checkForPossibleFiles() (workingDir string, files []string) {
-	wd, err := os.Getwd()
-	if err != nil {
-		fmt.Println(err)
-	}
-	infos, err := ioutil.ReadDir(wd)
+func checkForPossibleFiles() (files []string) {
+
+	infos, err := ioutil.ReadDir(viper.GetString("workloadPath"))
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -240,6 +235,6 @@ func checkForPossibleFiles() (workingDir string, files []string) {
 
 		proadFiles = append(proadFiles, info.Name())
 	}
-	return wd, proadFiles
+	return proadFiles
 
 }
