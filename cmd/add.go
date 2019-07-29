@@ -39,6 +39,7 @@ const (
 	jobNrNoWork   = "SEIN-0001-0169"
 	jobNrSick     = "SEIN-0001-0015"
 	jobNrVacation = "SEIN-0001-0012"
+	jobNrPitch    = "SEIN-0001-0154"
 )
 
 var (
@@ -132,7 +133,7 @@ var addCmd = &cobra.Command{
 				sheetname = wf.ModifiableSheetnames()[4]
 				wf.AddValueToEmployee(employeeName, workhours, wf.ModifiableSheetnames()[4], currentPeriodColumn)
 			default:
-				if caseInsensitiveContains(fmt.Sprintf("%s", colmap[7][i]), "pitch") {
+				if caseInsensitiveContains(fmt.Sprintf("%s", colmap[7][i]), "pitch") || jobnr == jobNrPitch {
 					sheetname = wf.ModifiableSheetnames()[1]
 					wf.AddValueToEmployee(employeeName, workhours, wf.ModifiableSheetnames()[1], currentPeriodColumn)
 				} else if strings.Contains(jobnr, "SEIN") {
